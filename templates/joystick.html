@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Joystick</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .joystick-container {
+            text-align: center;
+        }
+
+        .button {
+            display: inline-block;
+            width: 60px;
+            height: 60px;
+            margin: 5px;
+            background-color: lightgray;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 60px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .button:hover {
+            background-color: gray;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="joystick-container">
+        <div class="button" onclick="sendAction('up')">↑</div><br>
+        <div class="button" onclick="sendAction('left')">←</div>
+        <div class="button" onclick="sendAction('down')">↓</div>
+        <div class="button" onclick="sendAction('right')">→</div>
+    </div>
+    <script>
+        const domain = document.location.href;
+        const ws = new WebSocket(domain + "ws");
+        ws.onmessage = (event) => console.log("Server:", event.data);
+
+        function sendAction(direction) {
+            ws.send(JSON.stringify({ action: direction }));
+        }
+    </script>
+</body>
+
+</html>
