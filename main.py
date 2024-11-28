@@ -26,23 +26,3 @@ async def get_basic_control(
     return result
 
 
-
-@app.get("/create-control")
-async def get_crate_control(
-    session: AsyncSession = Depends(get_session)
-):
-    # b1 = BasicControl(name="Go Forward")
-    # b2 = BasicControl(name="Go Backward")
-    # b3 = BasicControl(name="Go Left")
-    # b4 = BasicControl(name="Go Right")
-    # b5 = BasicControl(name="Stop")
-    # b6 = BasicControl(name="Change Speed")
-    # session.add(b1)
-    # session.add(b2)
-    # session.add(b3)
-    # session.add(b4)
-    # session.add(b5)
-    # session.add(b6)
-    from sqlalchemy.sql import text
-    await session.execute(text("DELETE FROM basiccontrol"))
-    await session.commit()
