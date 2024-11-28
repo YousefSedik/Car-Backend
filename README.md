@@ -31,7 +31,7 @@ migrate database
 تاني
 و ابقي اعمل 
 new terminal
-كل مره
+كل مره مره تغير ال .env 
 
 ```
 alembic upgrade head
