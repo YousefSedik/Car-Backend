@@ -1,54 +1,119 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-    <title>Joystick</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PS4 Style Joystick</title>
     <style>
         body {
+            margin: 0;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            margin: 0;
+            background-color: #222;
+            color: white;
+            font-family: Arial, sans-serif;
         }
 
         .joystick-container {
-            text-align: center;
+            position: relative;
+            width: 200px;
+            height: 200px;
+            background-color: #555;
+            border-radius: 50%;
+            box-shadow: inset 0 0 10px #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
-        .button {
-            display: inline-block;
-            width: 60px;
-            height: 60px;
-            margin: 5px;
-            background-color: lightgray;
+        .joystick {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background-color: #222;
             border-radius: 50%;
-            text-align: center;
-            line-height: 60px;
-            font-size: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
             cursor: pointer;
         }
 
-        .button:hover {
-            background-color: gray;
+        .joystick:active {
+            background-color: #444;
         }
     </style>
 </head>
 
 <body>
-    <div class="joystick-container">
-        <div class="button" onclick="sendAction('up')">↑</div><br>
-        <div class="button" onclick="sendAction('left')">←</div>
-        <div class="button" onclick="sendAction('down')">↓</div>
-        <div class="button" onclick="sendAction('right')">→</div>
+    <div class="joystick-container" id="joystick-container">
+        <div class="joystick" id="joystick"></div>
     </div>
+
     <script>
+        const joystick = document.getElementById('joystick');
+        const container = document.getElementById('joystick-container');
+        const containerRect = container.getBoundingClientRect();
+        const maxRadius = container.offsetWidth / 2 - joystick.offsetWidth / 2;
+
+        let offsetX = 0, offsetY = 0;
+
+        // WebSocket connection
         const domain = document.location.href;
-        const ws = new WebSocket(domain + "ws");
+        const ws = new WebSocket(domain + "ws?username=string&device_type=user");
+        ws.onopen = () => console.log("WebSocket connected");
         ws.onmessage = (event) => console.log("Server:", event.data);
 
-        function sendAction(direction) {
-            ws.send(JSON.stringify({ action: direction }));
+        function sendJoystickData(x, y) {
+                if (ws.readyState === WebSocket.OPEN) {
+                    const data = {
+                        data: {
+                            x: x,
+                            y: y
+                        },
+                        type: "movement"
+                    };
+                    ws.send(JSON.stringify(data));
+                }
+            }
+        joystick.addEventListener('pointerdown', (event) => {
+            event.preventDefault();
+            document.addEventListener('pointermove', moveJoystick);
+            document.addEventListener('pointerup', releaseJoystick);
+        });
+
+        function moveJoystick(event) {
+            const containerCenterX = containerRect.left + containerRect.width / 2;
+            const containerCenterY = containerRect.top + containerRect.height / 2;
+
+            const dx = event.clientX - containerCenterX;
+            const dy = event.clientY - containerCenterY;
+            const distance = Math.min(Math.sqrt(dx * dx + dy * dy), maxRadius);
+
+            const angle = Math.atan2(dy, dx);
+            offsetX = Math.cos(angle) * distance;
+            offsetY = Math.sin(angle) * distance;
+
+            joystick.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+
+            // Normalize joystick data to a range of -1 to 1
+            const normalizedX = (offsetX / maxRadius).toFixed(2);
+            const normalizedY = (-offsetY / maxRadius).toFixed(2);
+
+            sendJoystickData(normalizedX, normalizedY);
+        }
+
+        function releaseJoystick() {
+            document.removeEventListener('pointermove', moveJoystick);
+            document.removeEventListener('pointerup', releaseJoystick);
+
+            // Reset joystick position
+            offsetX = 0;
+            offsetY = 0;
+            joystick.style.transform = `translate(0px, 0px)`;
+
+            // Send reset position
+            sendJoystickData(0, 0);
         }
     </script>
 </body>
