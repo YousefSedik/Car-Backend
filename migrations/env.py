@@ -5,6 +5,11 @@ from sqlalchemy import pool
 from sqlmodel import SQLModel
 from alembic import context
 from pathlib import Path
+# import models
+from auth.models import User
+from _websocket.models import BasicControl
+
+
 import os
 from dotenv import load_dotenv
 load_dotenv()
