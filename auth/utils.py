@@ -80,7 +80,26 @@ async def create_user(session: AsyncSession, user_data):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match"
         )
-
+    if len(user_data.password1) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters",
+        )
+    if len(user_data.username) < 4:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username must be at least 4 characters",
+        )
+    if user_data.username.isnumeric():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username cannot be a number",
+        )
+    if not user_data.username.isalpha():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username must contain only letters",
+        )
     # Check if username exists
     username_query = await session.exec(
         select(User).where(User.username == user_data.username)
@@ -96,7 +115,9 @@ async def create_user(session: AsyncSession, user_data):
         password=get_password_hash(user_data.password1),
         first_name=user_data.first_name,
         last_name=user_data.last_name,
+        car_speed=50,
     )
+    print(user)
     session.add(user)
     await session.commit()
     return user

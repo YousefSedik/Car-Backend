@@ -5,12 +5,15 @@ class ConnectionManager:
     def __init__(self):
         # Key: WebSocket object, Value: (username, device_type)
         self.active_connections: dict[WebSocket, tuple[str, str]] = {}
+        # Key: username, Value: list of device_type
+        self.active_connections_usernames: dict[str, list[str]] = {}
 
     async def connect(self, websocket: WebSocket):
         """
         Accepts the WebSocket connection, retrieves user details from query parameters,
         and adds the connection to the active connections dictionary.
         """
+
         await websocket.accept()
 
         try:
@@ -31,6 +34,10 @@ class ConnectionManager:
 
             # Add connection to the dictionary
             self.active_connections[websocket] = (username, device_type)
+            if username not in self.active_connections_usernames:
+                self.active_connections_usernames[username] = [device_type]
+            else:
+                self.active_connections_usernames[username].append(device_type)
             print(f"New connection: username={username}, device_type={device_type}")
         except Exception as e:
             print(f"Error connecting WebSocket: {e}")
@@ -40,36 +47,40 @@ class ConnectionManager:
         """
         Removes a WebSocket connection from the active connections dictionary.
         """
+
         if websocket in self.active_connections:
+            username, device_type = self.active_connections[websocket]
             del self.active_connections[websocket]
+            self.active_connections_usernames[username].remove(device_type)
             print(f"Disconnected: {websocket}")
 
-    async def send_to_user(self, message: str, user_id: int):
+    async def send_to_user(self, message: str, username: str):
         """
-        Sends a message to the specified user by user_id.
+        Sends a message to the specified user by username.
         """
-        for ws, (username, device_type) in self.active_connections.items():
+        for ws, (user_username, device_type) in self.active_connections.items():
             try:
-                if username == user_id and device_type == "user":
+                if user_username == username and device_type == "user":
                     await ws.send_text(message)
                     return True
             except Exception as e:
                 print(f"Error sending message: {e}")
-        
+
         return False
 
-    async def send_to_car(self, message: str, car_id: int):
+    async def send_to_car(self, message: str, username: int):
         """
         Sends a message to the specified car by car_id.
         """
-        for ws, (username, device_type) in self.active_connections.items():
+        for ws, (car_username, device_type) in self.active_connections.items():
             try:
-                if username == car_id and device_type == "car":
+                if car_username == username and device_type == "car":
                     await ws.send_text(message)
                     return True
             except Exception as e:
                 print(f"Error sending message: {e}")
-        
+        return False
+
         return False
     def checkIfOtherSideIsConnected(self, websocket: WebSocket):
         """
@@ -77,11 +88,13 @@ class ConnectionManager:
         """
         username = websocket.query_params.get("username", "")
         device_type = websocket.query_params.get("device_type", "")
-        for ws, (username, device_type) in self.active_connections.items():
-            if username == username and device_type != device_type:
-                return True
+
+        if (device_type == "car" and "user" in self.active_connections_usernames.get(username)):
+            return True
+        if device_type == "user" and "car" in self.active_connections_usernames.get(username):
+            return True
         return False
-    
+
     def __str__(self) -> str:
         result = ""
         for websocket, (username, device_type) in self.active_connections.items():
