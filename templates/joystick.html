@@ -59,9 +59,15 @@
         let offsetX = 0, offsetY = 0;
 
         // WebSocket connection
+        let userInput = prompt("Please enter your name:", "Your username");
         const domain = document.location.href;
-        const ws = new WebSocket(domain + "ws?username=string&device_type=user");
-        ws.onopen = () => console.log("WebSocket connected");
+        const ws = new WebSocket(domain + `ws?username=${userInput}&device_type=user`);
+        ws.onclose = () => window.alert("WebSocket connection closed");
+        function onopen() {
+            console.log("WebSocket connected");
+            window.alert("WebSocket connected");
+        }
+        ws.onopen = () => onopen(); 
         ws.onmessage = (event) => console.log("Server:", event.data);
 
         function sendJoystickData(x, y) {

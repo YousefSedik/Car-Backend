@@ -33,8 +33,8 @@ async def websocket_endpoint(
             # check if the obj can be converted to a json object
             try:
                 obj = json.loads(obj)
-            except json.JSONDecodeError:
-                print("Received data is not a json object")
+            except json.JSONDecodeError as e:
+                print("Received data is not a json object: ", e)
                 continue
 
             print(f"Received obj: {obj}")
@@ -44,11 +44,11 @@ async def websocket_endpoint(
 
             if manager.checkIfOtherSideIsConnected(websocket):
                 if device_type == 'car':
-                    return await handle_user_message (
+                    await handle_user_message (
                         obj["type"], data, username
                     )
                 else:
-                    return await handle_car_message(obj["type"], data, username)
+                    await handle_car_message(obj["type"], data, username)
             else:
                 print("other side is not connected to the server.")
 
@@ -82,35 +82,56 @@ async def handle_car_basic_control(data: dict, username: str):
     action_obj = data["action"]
     if type(action_obj) is dict:
         print("Action is a dict")
-        # then, the action could be Go Forward, Go Backward, Change Speed
-        print(action_obj)
+        # then, the action could be [Go Forward, Go Backward, Change Speed]
         print(action_obj.keys())
         action = list(action_obj.keys())[0]
         if action == "Change Speed":
-            print("Changing speed")
-            speed = action_obj["Change Speed"]
-            message = {"type": "basicControl", "action": "Change Speed", "NewSpeed": speed}
-            print(f"Sending to {username} message: {message}")
-            message = json.dumps(message)
-            await manager.send_to_car(message, username)
+            await handle_car_basic_control_change_speed(action_obj, username)
         elif action in ["Go Forward", "Go Backward"]:
-            print(action)
-            to_infinity = action_obj[action].get("ToInfinity", True)
-            if to_infinity:
-                message = {"type": "basicControl", "action": action, "ToInfinity": to_infinity}
-            else:
-                forSeconds = action_obj["Go Forward"].get("ForSeconds", 1)
-                message = {"type": "basicControl", "action": action, "ToInfinity": to_infinity, "forSeconds": forSeconds}
-            print(f"Sending to {username} message: {message}")
-
-            message = json.dumps(message)
-            await manager.send_to_car(message, username)
+            await handle_user_basic_control_start_direction(action_obj, action, username)
         else:
             print("Invalid action")
-    elif type(action) is str:
+    elif type(action_obj) is str:
         print("Action is a string")
-        if action == "Stop":
-            print("Stopping the car")
-            message = {"type": "basicControl", "action": "Stop"}
-            message = json.dumps(message)
-            await manager.send_to_car(message, username)
+        if action_obj == "Stop":
+            await handle_user_basic_control_stop(username)
+
+
+async def handle_car_basic_control_change_speed(action_obj: dict, username):
+    speed = action_obj["Change Speed"]
+    if speed <= 100 and speed >= 1:
+        print("Speed is in the range")
+    else:
+        print("Speed is not in the range")
+        return 
+    print("Changing speed")
+    message = {"type": "basicControl", "action": "Change Speed", "NewSpeed": speed}
+    print(f"Sending to {username} message: {message}")
+    message = json.dumps(message)
+    is_sent = await manager.send_to_car(message, username)
+    print(f"Message sent: {is_sent}")
+
+async def handle_user_basic_control_start_direction(action_obj: dict, action: int, username: str):
+    '''
+    Go Forward, Go Backward
+    '''
+    print(action)
+    to_infinity = action_obj[action].get("ToInfinity", True)
+    if to_infinity:
+        message = {"type": "basicControl", "action": action, "ToInfinity": to_infinity}
+    else:
+        forSeconds = action_obj[action].get("ForSeconds", 1)
+        message = {"type": "basicControl", "action": action, "ToInfinity": to_infinity, "forSeconds": forSeconds}
+    print(f"Sending to {username} message: {message}")
+
+    message = json.dumps(message)
+    is_sent = await manager.send_to_car(message, username)
+    print(f"Message sent: {is_sent}")
+
+async def handle_user_basic_control_stop(username):
+    print("Stopping the car")
+    message = {"type": "basicControl", "action": "Stop"}
+    message = json.dumps(message)
+    print(f"Sending to {username} message: {message}")
+    is_sent = await manager.send_to_car(message, username)
+    print(f"Message sent: {is_sent}")

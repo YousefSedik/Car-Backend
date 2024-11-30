@@ -80,8 +80,7 @@ class ConnectionManager:
             except Exception as e:
                 print(f"Error sending message: {e}")
         return False
-
-        return False
+    
     def checkIfOtherSideIsConnected(self, websocket: WebSocket):
         """
         Checks if the other side (user or car) is connected to the server.
