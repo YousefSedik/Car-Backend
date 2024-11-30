@@ -41,7 +41,9 @@ async def websocket_endpoint(
             device_type = websocket.query_params.get("device_type", "")
             username = websocket.query_params.get("username", "")
             data = obj["data"]
-
+            if "" in [device_type, username]:
+                print("Device type or username is empty")
+                manager.disconnect(websocket)
             if manager.checkIfOtherSideIsConnected(websocket):
                 if device_type == 'car':
                     await handle_user_message (
