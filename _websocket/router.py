@@ -107,7 +107,7 @@ async def handle_car_basic_control_change_speed(action_obj: dict, username):
         print("Speed is not in the range")
         return 
     print("Changing speed")
-    message = {"type": "basicControl", "action": "Change Speed", "NewSpeed": speed}
+    message = {"type": "basicControl", "action": "Change Speed", "speed": speed}
     print(f"Sending to {username} message: {message}")
     message = json.dumps(message)
     is_sent = await manager.send_to_car(message, username)
