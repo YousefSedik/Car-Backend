@@ -1,14 +1,15 @@
+from jwt import decode as jwt_decode, ExpiredSignatureError, InvalidTokenError
 from sqlmodel.ext.asyncio.session import AsyncSession
-from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, status, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from auth.schemas import TokenData
-from auth.models import User
 from jose import JWTError, jwt
+from dotenv import load_dotenv
+from auth.models import User
 from sqlmodel import select
 import os
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -121,3 +122,18 @@ async def create_user(session: AsyncSession, user_data):
     session.add(user)
     await session.commit()
     return user
+
+
+def validate_jwt(token: str):
+    try:
+        payload = jwt_decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if not username:
+            raise HTTPException(
+                status_code=400, detail="Invalid token: username missing"
+            )
+        return username
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
