@@ -4,7 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter
 from auth.models import User
 from sqlmodel import select
+from auth.utils import validate_jwt
 from fastapi import Depends
+from fastapi import HTTPException
 from db import get_session
 import json
 
@@ -19,14 +21,21 @@ async def websocket_endpoint(
     
 ):
     print("-----------------------------")
-    username = websocket.query_params.get("username", "")
-    user_exists = await session.execute(select(User).where(User.username == username))
-    user_exists = user_exists.scalars().first()
-    if not user_exists:
-        print("User does not exist, closing connection")    
+    token = websocket.query_params.get("token", "")
+    if not token:
+        print("Missing token, closing connection")
         await websocket.close()
         return
-    await manager.connect(websocket)
+
+    try:
+        username = validate_jwt(token)
+        # set the username to the websocket query params
+    except HTTPException as e:
+        print(e.detail)
+        await websocket.close()
+        return
+
+    await manager.connect(websocket, username)
     try:
         while True:
             obj = await websocket.receive_text()
@@ -39,12 +48,11 @@ async def websocket_endpoint(
 
             print(f"Received obj: {obj}")
             device_type = websocket.query_params.get("device_type", "")
-            username = websocket.query_params.get("username", "")
             data = obj["data"]
-            if "" in [device_type, username]:
-                print("Device type or username is empty")
+            if device_type == "":
+                print("Device type is empty")
                 manager.disconnect(websocket)
-            if manager.checkIfOtherSideIsConnected(websocket):
+            if manager.checkIfOtherSideIsConnected(websocket, username):
                 if device_type == 'car':
                     await handle_user_message (
                         obj["type"], data, username
@@ -67,11 +75,26 @@ async def handle_car_message(type: str, data: dict, username: str):
         if type == "basicControl":
             print("Handling basic control")
             await handle_car_basic_control(data, username)
+        elif type == "switchMode":
+            print("Handling switch mode")
+            await handle_car_switch_mode(data, username)
         else:
             raise Exception("Invalid message type")
     except Exception as e:
         print(f"Error handling car message: {e}")
 
+async def handle_car_switch_mode(data: dict, username: str):
+    mode = data["mode"]
+    allowed_modes = ["follow-mode", "safe-mode"]
+    if mode not in allowed_modes:
+        print(f"{mode} is not a valid mode, only {allowed_modes} are allowed")
+        return
+    print(f"Switching mode to {mode}")
+    message = {"type": "switchMode", "mode": mode}
+    message = json.dumps(message)
+    print(f"Sending to {username} message: {message}")
+    is_sent = await manager.send_to_car(message, username)
+    print(f"Message sent: {is_sent}")
 
 async def handle_user_message(type: str, data: dict, username: str):
     try:

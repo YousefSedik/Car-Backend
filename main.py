@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from auth.router import router as auth_router
 from _websocket.router import router as web_socket_router
 from fastapi import Depends
@@ -11,11 +11,12 @@ app = FastAPI()
 app.include_router(auth_router)
 app.include_router(web_socket_router)
 
+# switch to mode
 
-
-@app.get("/")
-async def get_joystick():
-    return HTMLResponse(content=open("templates/joystick.html", encoding="utf8").read())
+# @app.get("/")
+# async def get_joystick():
+#     return RedirectResponse(url="/ws")
+    # return HTMLResponse(content=open("templates/joystick.html", encoding="utf8").read())
 
 @app.get("/basic-control")
 async def get_basic_control(
@@ -24,5 +25,3 @@ async def get_basic_control(
     result = await session.execute(select(BasicControl.name))
     result = result.scalars().all()
     return result
-
-

@@ -8,7 +8,7 @@ class ConnectionManager:
         # Key: username, Value: list of device_type
         self.active_connections_usernames: dict[str, list[str]] = {}
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket, username: str):
         """
         Accepts the WebSocket connection, retrieves user details from query parameters,
         and adds the connection to the active connections dictionary.
@@ -18,9 +18,6 @@ class ConnectionManager:
 
         try:
             params = websocket.query_params
-            username = params.get(
-                "username", ""
-            ).lower()
             device_type = params.get(
                 "device_type", ""
             ).lower()
@@ -81,11 +78,11 @@ class ConnectionManager:
                 print(f"Error sending message: {e}")
         return False
     
-    def checkIfOtherSideIsConnected(self, websocket: WebSocket):
+    def checkIfOtherSideIsConnected(self, websocket: WebSocket, username: str):
         """
         Checks if the other side (user or car) is connected to the server.
         """
-        username = websocket.query_params.get("username", "")
+        # username = websocket.query_params.get("username", "")
         device_type = websocket.query_params.get("device_type", "")
 
         if (device_type == "car" and "user" in self.active_connections_usernames.get(username)):
