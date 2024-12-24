@@ -96,11 +96,7 @@ async def create_user(session: AsyncSession, user_data):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username cannot be a number",
         )
-    if not user_data.username.isalpha():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username must contain only letters",
-        )
+
     # Check if username exists
     username_query = await session.exec(
         select(User).where(User.username == user_data.username)
