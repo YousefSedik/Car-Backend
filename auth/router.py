@@ -1,5 +1,5 @@
 from fastapi.routing import APIRouter
-from auth.schemas import LoginForm, SignUpForm
+from auth.schemas import LoginForm, SignUpForm, ReadUserToken
 from dotenv import load_dotenv
 from auth.schemas import Token
 from fastapi.security import OAuth2PasswordRequestForm
@@ -50,9 +50,10 @@ async def login(
 
 
 @router.get("/users/me")
-async def read_users_me(
-    token,
+async def read_user(
+    token: ReadUserToken,
     session: AsyncSession = Depends(get_session),
 ):
+    token = token.token
     user = await get_current_user(session, token)
     return {"username": user.username, "first_name": user.first_name, "last_name": user.last_name, "car_speed": user.car_speed}
