@@ -7,6 +7,11 @@ class User(SQLModel, table=True):
     first_name: str = Field(max_length=30, nullable=False)
     last_name: str = Field(max_length=30, nullable=False)
     password: str = Field(nullable=False)
-    car_speed: int = Column(default=50)
     def __str__(self):
         return self.username
+
+
+class UserCar(SQLModel, table=True):
+    id: int = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    key: str = Field(nullable=False) 
