@@ -2,7 +2,7 @@ from utils.ConnectionManager import ConnectionManager
 from fastapi import WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession 
 from fastapi import APIRouter
-from auth.models import User
+from auth.models import User, UserCar
 from sqlmodel import select
 from auth.utils import validate_jwt
 from fastapi import Depends
@@ -21,17 +21,35 @@ async def websocket_endpoint(
     
 ):
     print("-----------------------------")
-    token = websocket.query_params.get("token", "")
+    token = websocket.headers.get("Authorization")
+    token = websocket.query_params.get("token") if token is None else token
     if not token:
         print("Missing token, closing connection")
         await websocket.close()
         return
 
-    try:
-        username = validate_jwt(token)
-        # set the username to the websocket query params
-    except HTTPException as e:
-        print(e.detail)
+    device_type = websocket.headers.get("device_type") 
+    device_type = websocket.query_params.get("device_type") if device_type is None else device_type
+    if device_type == "car":
+        key = websocket.headers.get("Authorization")
+        result = await session.execute(select(UserCar).where(UserCar.key == key))
+        user_car = result.scalar_one_or_none()
+        if user_car is None:
+            await websocket.close()
+            return
+        result = await session.execute(select(User).where(User.id == user_car.user_id))
+        username = result.scalar_one().username
+
+    elif device_type == "user":
+        try:
+            username = validate_jwt(token)
+            # set the username to the websocket query params
+        except HTTPException as e:
+            print(e.detail)
+            await websocket.close()
+            return
+    else:
+        print("invalid device_type ")
         await websocket.close()
         return
 
@@ -47,7 +65,7 @@ async def websocket_endpoint(
                 continue
 
             print(f"Received obj: {obj}")
-            device_type = websocket.query_params.get("device_type", "")
+            device_type = websocket.headers.get("device_type", "")
             data = obj["data"]
             if device_type == "":
                 print("Device type is empty")
@@ -124,7 +142,7 @@ async def handle_car_basic_control(data: dict, username: str):
 
 async def handle_car_basic_control_change_speed(action_obj: dict, username):
     speed = action_obj["Change Speed"]
-    if speed <= 100 and speed >= 1:
+    if speed <= 255 and speed >= 50:
         print("Speed is in the range")
     else:
         print("Speed is not in the range")
