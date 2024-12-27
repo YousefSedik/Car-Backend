@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from auth.models import User
 from sqlmodel import select
 import os
-
+from db import get_session
 load_dotenv()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -54,7 +54,7 @@ async def create_access_token(data: dict, expires_delta: timedelta = None):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-async def get_current_user(session: AsyncSession, token: str = Depends(oauth_2_scheme)):
+async def get_current_user(session: AsyncSession = Depends(get_session), token: str = Depends(oauth_2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -96,11 +96,7 @@ async def create_user(session: AsyncSession, user_data):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username cannot be a number",
         )
-    if not user_data.username.isalpha():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username must contain only letters",
-        )
+
     # Check if username exists
     username_query = await session.exec(
         select(User).where(User.username == user_data.username)
@@ -116,7 +112,6 @@ async def create_user(session: AsyncSession, user_data):
         password=get_password_hash(user_data.password1),
         first_name=user_data.first_name,
         last_name=user_data.last_name,
-        car_speed=50,
     )
     print(user)
     session.add(user)
@@ -126,6 +121,7 @@ async def create_user(session: AsyncSession, user_data):
 
 def validate_jwt(token: str):
     try:
+        token = token.split("Bearer ")[1]
         payload = jwt_decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         if not username:

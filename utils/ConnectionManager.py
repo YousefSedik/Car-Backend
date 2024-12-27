@@ -17,7 +17,7 @@ class ConnectionManager:
         await websocket.accept()
 
         try:
-            params = websocket.query_params
+            params = websocket.headers
             device_type = params.get(
                 "device_type", ""
             ).lower()
@@ -77,14 +77,13 @@ class ConnectionManager:
             except Exception as e:
                 print(f"Error sending message: {e}")
         return False
-    
+
     def checkIfOtherSideIsConnected(self, websocket: WebSocket, username: str):
         """
         Checks if the other side (user or car) is connected to the server.
         """
-        # username = websocket.query_params.get("username", "")
-        device_type = websocket.query_params.get("device_type", "")
-
+        device_type = websocket.headers.get("device_type")
+        device_type = websocket.query_params.get("device_type") if device_type is None else device_type
         if (device_type == "car" and "user" in self.active_connections_usernames.get(username)):
             return True
         if device_type == "user" and "car" in self.active_connections_usernames.get(username):

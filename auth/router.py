@@ -13,11 +13,11 @@ from auth.utils import (
 )
 from fastapi import Response
 from db import get_session
-from auth.models import User
+from auth.models import User, UserCar
 from datetime import timedelta, datetime
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from uuid import uuid4
 load_dotenv()
 
 router = APIRouter()
@@ -33,7 +33,7 @@ async def register(
 
 @router.post("/token", response_model=Token)
 async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(), session=Depends(get_session)
+    form_data: LoginForm, session=Depends(get_session)
 ):
     user = await authenticate_user(session, form_data.username, form_data.password)
     if not user:
@@ -46,13 +46,38 @@ async def login(
     access_token = await create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expire
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "Bearer"}
 
 
 @router.get("/users/me")
-async def read_users_me(
-    token,
+async def read_user(
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    user = await get_current_user(session, token)
-    return {"username": user.username, "first_name": user.first_name, "last_name": user.last_name, "car_speed": user.car_speed}
+    return {
+        "username": current_user.username,
+        "first_name": current_user.first_name,
+        "last_name": current_user.last_name,
+    }
+
+@router.post("/key")
+async def generate_key(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    key = str(uuid4()).replace("-", "")
+    user_car = UserCar(user_id=current_user.id, key=key)
+    session.add(user_car)
+    await session.commit()
+    return {
+        "key": key
+    }
+    
+@router.get("/key")
+async def get_all_cars_for_user(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.execute(select(UserCar.key).where(UserCar.user_id == current_user.id))
+    cars = result.scalars().all()
+    return cars

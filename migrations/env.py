@@ -7,8 +7,8 @@ from alembic import context
 from pathlib import Path
 # import models
 from auth.models import User
-from _websocket.models import BasicControl
-
+from control.models import BasicControl, CustomControl, Control
+from auth.models import UserCar
 
 import os
 from dotenv import load_dotenv
