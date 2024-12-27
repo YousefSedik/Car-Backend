@@ -8,7 +8,7 @@ from pathlib import Path
 # import models
 from auth.models import User
 from control.models import BasicControl, CustomControl, Control
-from auth.models import UserCar
+from car.models import UserCar
 
 import os
 from dotenv import load_dotenv
