@@ -44,8 +44,6 @@ async def delete_key(
         select(UserCar).where(UserCar.key == car_key_form.car_key)
     )
     user_car = result.scalar_one_or_none()
-    print(user_car)
-    
     if user_car.user_id != current_user.id:
         raise HTTPException(
             status_code=403, detail="You are not authorized to delete this key"

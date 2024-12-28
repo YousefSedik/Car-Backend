@@ -3,6 +3,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession 
 from fastapi import APIRouter
 from auth.models import User
+from control.models import Control
 from car.models import UserCar
 from sqlmodel import select
 from auth.utils import validate_jwt
@@ -19,7 +20,6 @@ manager = ConnectionManager()
 async def websocket_endpoint(
     websocket: WebSocket,
     session: AsyncSession = Depends(get_session)
-    
 ):
     print("-----------------------------")
     token = websocket.headers.get("Authorization")
@@ -40,11 +40,10 @@ async def websocket_endpoint(
             return
         result = await session.execute(select(User).where(User.id == user_car.user_id))
         username = result.scalar_one().username
-
+        
     elif device_type == "user":
         try:
             username = validate_jwt(token)
-            # set the username to the websocket query params
         except HTTPException as e:
             print(e.detail)
             await websocket.close()
@@ -57,6 +56,7 @@ async def websocket_endpoint(
     await manager.connect(websocket, username)
     try:
         while True:
+            print(device_type)
             obj = await websocket.receive_text()
             # check if the obj can be converted to a json object
             try:
@@ -66,41 +66,45 @@ async def websocket_endpoint(
                 continue
 
             print(f"Received obj: {obj}")
-            device_type = websocket.headers.get("device_type", "")
-            data = obj["data"]
-            if device_type == "":
-                print("Device type is empty")
-                manager.disconnect(websocket)
             if manager.checkIfOtherSideIsConnected(websocket, username):
                 if device_type == 'car':
-                    await handle_user_message (
-                        obj["type"], data, username
-                    )
-                else:
-                    await handle_car_message(obj["type"], data, username)
+                    print("sending to the user that the message is received. ")
+                    success = await manager.send_to_car(json.dumps(obj), username)
+                    print(f"Message sent: {success}")
+                elif device_type == 'user':
+                    await handle_car_message(session, obj, username)
             else:
-                print("other side is not connected to the server.")
+                if device_type == 'user':
+                    print("sending to the user that the car is not connected. ")
+                    message = {"type": "notification", "message": "Car is not connected"}
+                    message = json.dumps(message)
+                    await manager.send_to_user(message, username)
 
             print("Connection manager:")
             print(manager)
+
     except WebSocketDisconnect:
         manager.disconnect(websocket)
         print("Client disconnected")
 
 
-async def handle_car_message(type: str, data: dict, username: str):
+async def handle_car_message(session: AsyncSession, data: dict, username: str):
     try:
-
+        type = data["type"]
         if type == "basicControl":
             print("Handling basic control")
             await handle_car_basic_control(data, username)
         elif type == "switchMode":
             print("Handling switch mode")
             await handle_car_switch_mode(data, username)
+        elif type == "customControl":
+            print("Handling calling custom control")
+            await handle_car_custom_control(session, data, username)
         else:
             raise Exception("Invalid message type")
     except Exception as e:
         print(f"Error handling car message: {e}")
+
 
 async def handle_car_switch_mode(data: dict, username: str):
     mode = data["mode"]
@@ -115,67 +119,58 @@ async def handle_car_switch_mode(data: dict, username: str):
     is_sent = await manager.send_to_car(message, username)
     print(f"Message sent: {is_sent}")
 
-async def handle_user_message(type: str, data: dict, username: str):
-    try:
-        pass
-    except Exception as e:
-        print(f"Error handling user message: {e}")
-
 
 async def handle_car_basic_control(data: dict, username: str):
-    action_obj = data["action"]
-    if type(action_obj) is dict:
-        print("Action is a dict")
-        # then, the action could be [Go Forward, Go Backward, Change Speed]
-        print(action_obj.keys())
-        action = list(action_obj.keys())[0]
-        if action == "Change Speed":
-            await handle_car_basic_control_change_speed(action_obj, username)
-        elif action in ["Go Forward", "Go Backward"]:
-            await handle_user_basic_control_start_direction(action_obj, action, username)
+    # make sure that the data is right
+    if data["type"] == "basicControl":
+        if data.get("action") is not None and isinstance(data.get("action"), list):
+            if data["action"][0] == "set-speed":
+                if data["action"][1] >= 50 and data["action"][1] <= 255:
+                    # redirect the message to the car
+                    await manager.send_to_car(json.dumps(data), username)
+                else:
+                    print("Invalid speed")
+
+            elif data["action"][0] == "set-direction":
+                allowed_directions = ["forward", "backward", "left", "right", "stop"]
+                if data["action"][1] in allowed_directions:
+                    # redirect the message to the car
+                    await manager.send_to_car(json.dumps(data), username)
+            else:
+                print("Invalid action")
         else:
             print("Invalid action")
-    elif type(action_obj) is str:
-        print("Action is a string")
-        if action_obj == "Stop":
-            await handle_user_basic_control_stop(username)
-
-
-async def handle_car_basic_control_change_speed(action_obj: dict, username):
-    speed = action_obj["Change Speed"]
-    if speed <= 255 and speed >= 50:
-        print("Speed is in the range")
     else:
-        print("Speed is not in the range")
-        return 
-    print("Changing speed")
-    message = {"type": "basicControl", "action": "Change Speed", "speed": speed}
-    print(f"Sending to {username} message: {message}")
-    message = json.dumps(message)
-    is_sent = await manager.send_to_car(message, username)
-    print(f"Message sent: {is_sent}")
+        print("Invalid type")
 
-async def handle_user_basic_control_start_direction(action_obj: dict, action: int, username: str):
-    '''
-    Go Forward, Go Backward
-    '''
-    print(action)
-    to_infinity = action_obj[action].get("ToInfinity", True)
-    if to_infinity:
-        message = {"type": "basicControl", "action": action, "ToInfinity": to_infinity}
-    else:
-        forSeconds = action_obj[action].get("ForSeconds", 1)
-        message = {"type": "basicControl", "action": action, "ToInfinity": to_infinity, "forSeconds": forSeconds}
-    print(f"Sending to {username} message: {message}")
+async def handle_car_custom_control(session: AsyncSession, data, username):
+    id = data.get("id")
+    if id is None:
+        print("Missing id")
+        return
 
+    result = await session.execute(select(Control).where(Control.custom_control_id == id))
+    controls = result.scalars().all()
+    actions = []
+    mapper = {
+        1: "forward",
+        2: "backward",
+        3: "left",
+        4: "right",
+        5: "stop",
+    }
+    for control in controls:
+        bs_id = control.basic_control_id
+        if bs_id in range(1, 6):
+            if bs_id == 5:
+                actions.append(["set-direction", "stop"])
+            else:
+                actions.append(["set-direction", mapper[control.basic_control_id], control.value])
+        elif bs_id == 6:
+            actions.append(["set-speed", control.value])
+        
+    print(f"Sending to car: {actions}")
+    message = {"type": "customControl", "actions": actions}
     message = json.dumps(message)
-    is_sent = await manager.send_to_car(message, username)
-    print(f"Message sent: {is_sent}")
-
-async def handle_user_basic_control_stop(username):
-    print("Stopping the car")
-    message = {"type": "basicControl", "action": "Stop"}
-    message = json.dumps(message)
-    print(f"Sending to {username} message: {message}")
     is_sent = await manager.send_to_car(message, username)
     print(f"Message sent: {is_sent}")

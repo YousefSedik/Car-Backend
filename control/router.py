@@ -39,7 +39,7 @@ async def create_custom_control(
     await session.commit()
     session.refresh(custom_control)
 
-    for control in custom_control_schema.basic_controls:
+    for control in custom_control_schema.controls:
         control_new_obj = Control(
             custom_control_id=custom_control.id,
             basic_control_id=control.get("basicControl_id"),
@@ -59,26 +59,49 @@ async def create_custom_control(
     await session.commit()
     return responses.Response(custom_control.dict(), 201)
 
-
 @router.get("/custom-control/{id}")
 async def get_custom_control_by_id(
     id: int,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    custom_control = await session.get(CustomControl, id)
-    
-    if custom_control is None:
+    # Query to fetch Control with its associated CustomControl
+    result = await session.execute(
+        select(Control)
+        .options(selectinload(Control.custom_control))  # Load the related CustomControl
+        .where(Control.custom_control_id == id)
+    )
+    controls = result.scalars().all()  # Fetch all matching Control records
+
+    if not controls:
         raise HTTPException(status_code=404, detail="Control not found")
-    if custom_control.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Unauthorized")
-    return custom_control
+    controls_list = []
+    mapper = {
+        1: "Forward",
+        2: "Backward",
+        3: "Left",
+        4: "Right",
+        5: "Stop",
+        6: "Change Speed",
+    }
+    for control in controls:
+        if control.custom_control.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Unauthorized")
+        control_obj = {
+            "control_name": mapper[control.basic_control_id],
+            "value": control.value,
+        }
+        controls_list.append(control_obj)
+
+    return controls_list
+
 
 @router.get("/custom-control")
 async def get_custom_controls(
     current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session)):
-    # get all custom control and control objects associated with it
+    session: AsyncSession = Depends(get_session),
+):
+    # Get all custom controls with associated control objects
     result = await session.execute(
         select(CustomControl)
         .options(selectinload(CustomControl.controls))  # Eager load controls
@@ -86,5 +109,3 @@ async def get_custom_controls(
     )
     custom_controls = result.scalars().all()
     return custom_controls
-
-
