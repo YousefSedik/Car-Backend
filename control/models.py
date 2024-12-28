@@ -1,5 +1,7 @@
 from sqlmodel import Field, SQLModel, Relationship
 from typing import Optional, List
+from sqlalchemy.orm import registry
+
 
 class BasicControl(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)  # Integer primary key
@@ -13,7 +15,7 @@ class CustomControl(SQLModel, table=True):
     description: str = Field(
         max_length=1024, nullable=True, default=None
     )  # String with a larger max length for descriptions
-    # controls: List['Control'] = Relationship(back_populates="custom_control")
+    controls: List['Control'] = Relationship(back_populates="custom_control")
 
 
 class Control(SQLModel, table=True):
@@ -25,4 +27,6 @@ class Control(SQLModel, table=True):
         foreign_key="basiccontrol.id"
     )  # Foreign key reference to BasicControl
     value: Optional[int] = Field(default=None, ge=0, nullable=True)  # Optional non-negative float for distance
+    custom_control: Optional["CustomControl"] = Relationship(back_populates="controls")  # Relationship to CustomControl
 
+registry().configure()

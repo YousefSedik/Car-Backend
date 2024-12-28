@@ -2,7 +2,6 @@ from fastapi.routing import APIRouter
 from auth.schemas import LoginForm, SignUpForm
 from dotenv import load_dotenv
 from auth.schemas import Token
-from fastapi.security import OAuth2PasswordRequestForm
 from fastapi import Depends, HTTPException, status
 from auth.utils import (
     authenticate_user,
@@ -13,11 +12,9 @@ from auth.utils import (
 )
 from fastapi import Response
 from db import get_session
-from auth.models import User, UserCar
-from datetime import timedelta, datetime
-from sqlmodel import select
+from auth.models import User
+from datetime import timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import uuid4
 load_dotenv()
 
 router = APIRouter()
@@ -60,24 +57,3 @@ async def read_user(
         "last_name": current_user.last_name,
     }
 
-@router.post("/key")
-async def generate_key(
-    current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-):
-    key = str(uuid4()).replace("-", "")
-    user_car = UserCar(user_id=current_user.id, key=key)
-    session.add(user_car)
-    await session.commit()
-    return {
-        "key": key
-    }
-    
-@router.get("/key")
-async def get_all_cars_for_user(
-    current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-):
-    result = await session.execute(select(UserCar.key).where(UserCar.user_id == current_user.id))
-    cars = result.scalars().all()
-    return cars

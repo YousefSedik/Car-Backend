@@ -5,7 +5,7 @@ from pydantic.fields import Field
 class CreateControlSchema(BaseModel):
     name: str
     description: Optional[str] =  Field(default=None)
-    basic_controls: List[dict]
+    controls: List[dict]
     
     
     

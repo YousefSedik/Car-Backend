@@ -1,4 +1,4 @@
-from sqlmodel import Field, SQLModel, Column
+from sqlmodel import Field, SQLModel
 
 
 class User(SQLModel, table=True):
@@ -10,8 +10,3 @@ class User(SQLModel, table=True):
     def __str__(self):
         return self.username
 
-
-class UserCar(SQLModel, table=True):
-    id: int = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id")
-    key: str = Field(nullable=False) 
