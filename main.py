@@ -9,3 +9,18 @@ app.include_router(auth_router, tags=["Authentication"])
 app.include_router(web_socket_router)
 app.include_router(control_router, tags=["Control"])
 app.include_router(car_router, tags=["Car"])
+
+from fastapi.middleware.cors import CORSMiddleware
+
+origins = [
+    "http://localhost",
+    "http://localhost:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
