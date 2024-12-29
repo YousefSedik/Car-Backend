@@ -17,6 +17,7 @@ origins = [
     "http://192.168.1.13:3000",
     "http://localhost:3000",
     "https://car-controller-neon.vercel.app/",
+    "https://car-controller-neon.vercel.app",
 ]
 
 app.add_middleware(
