@@ -127,18 +127,27 @@ async def handle_car_basic_control(data: dict, username: str):
     # make sure that the data is right
     if data["type"] == "basicControl":
         if data.get("action") is not None and isinstance(data.get("action"), list):
-            if data["action"][0] == "set-speed":
-                if data["action"][1] >= 50 and data["action"][1] <= 255:
-                    # redirect the message to the car
-                    await manager.send_to_car(json.dumps(data), username)
-                else:
-                    print("Invalid speed")
-
-            elif data["action"][0] == "set-direction":
-                allowed_directions = ["forward", "backward", "left", "right", "stop"]
-                if data["action"][1] in allowed_directions:
-                    # redirect the message to the car
-                    await manager.send_to_car(json.dumps(data), username)
+            allowed_directions = ["forward", "backward", "left", "right", ]
+            if data["action"][0] in allowed_directions and data["action"][1] in range(50, 256):
+                await manager.send_to_car(
+                    json.dumps(
+                        {
+                            "type": "basicControl",
+                            "action": [data["action"][0], data["action"][1]],
+                        }
+                    ),
+                    username,
+                )
+            elif data["action"][0] == "stop":
+                await manager.send_to_car(
+                    json.dumps(
+                        {
+                            "type": "basicControl",
+                            "action": [data["action"][0]],
+                        }
+                    ),
+                    username,
+                )
             else:
                 print("Invalid action")
         else:
