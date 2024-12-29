@@ -4,10 +4,4 @@ from pydantic.fields import Field
 
 class CreateControlSchema(BaseModel):
     name: str
-    description: Optional[str] =  Field(default=None)
-    controls: List[dict]
-    
-    
-    
-#   "description": "this is a description",
-
+    description: list[list] =  Field(default=None)
