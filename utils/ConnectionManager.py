@@ -17,11 +17,10 @@ class ConnectionManager:
         await websocket.accept()
 
         try:
-            params = websocket.headers
-            device_type = params.get(
-                "device_type", ""
-            ).lower()
-
+            device_type = websocket.headers.get(
+                "device_type"
+            )
+            device_type = websocket.query_params.get("device_type") if device_type is None else device_type
             # Validate device_type
             if device_type not in ["user", "car"]:
                 await websocket.close(code=1003)  # 1003: Unsupported Data

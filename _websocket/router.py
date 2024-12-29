@@ -31,9 +31,11 @@ async def websocket_endpoint(
 
     device_type = websocket.headers.get("device_type") 
     device_type = websocket.query_params.get("device_type") if device_type is None else device_type
+    print(f"Device type: {device_type}")
+    print(device_type == 'user')
     if device_type == "car":
-        key = websocket.headers.get("Authorization")
-        result = await session.execute(select(UserCar).where(UserCar.key == key))
+        # key = websocket.headers.get("Authorization")
+        result = await session.execute(select(UserCar).where(UserCar.key == token))
         user_car = result.scalar_one_or_none()
         if user_car is None:
             await websocket.close()
@@ -45,6 +47,7 @@ async def websocket_endpoint(
         try:
             username = validate_jwt(token)
         except HTTPException as e:
+            print("manga")
             print(e.detail)
             await websocket.close()
             return
