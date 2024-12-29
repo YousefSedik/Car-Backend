@@ -108,7 +108,7 @@ async def handle_car_message(session: AsyncSession, data: dict, username: str):
 
 async def handle_car_switch_mode(data: dict, username: str):
     mode = data["mode"]
-    allowed_modes = ["follow-mode", "safe-mode"]
+    allowed_modes = ["follow-mode", "safe-mode", "free-mode"]
     if mode not in allowed_modes:
         print(f"{mode} is not a valid mode, only {allowed_modes} are allowed")
         return
