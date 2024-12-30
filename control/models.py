@@ -21,7 +21,8 @@ class CustomControl(SQLModel, table=True):
 class Control(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)  # Integer primary key
     custom_control_id: int = Field(
-        foreign_key="customcontrol.id"
+        foreign_key="customcontrol.id",
+        ondelete="CASCADE",
     )  # Foreign key reference to CustomControl
     basic_control_id: int = Field(
         foreign_key="basiccontrol.id"

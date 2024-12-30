@@ -60,9 +60,37 @@ async def get_custom_controls(
 ):
     # Get all custom controls with associated control objects
     result = await session.execute(
-        select(CustomControl.name, CustomControl.description).where(
+        select(CustomControl.id, CustomControl.name, CustomControl.description).where(
             CustomControl.user_id == current_user.id
         )
     )
-    custom_controls = [{"name": row[0], "description": json.loads(row[1]) if row[1] else None} for row in result.all()]
+    custom_controls = [{"id": row[0], "name": row[1], "description": json.loads(row[2]) if row[2] else None} for row in result.all()]
     return custom_controls
+
+
+@router.delete("/custom-control/{control_id}")
+async def delete_custom_control(
+    control_id: int,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.execute(
+        select(Control).where(Control.custom_control_id == control_id)
+    )
+    controls = result.scalars().all()
+    for control in controls:
+        await session.delete(control)
+    await session.commit()
+    
+    result = await session.execute(
+        select(CustomControl).where(CustomControl.id == control_id)
+    )
+    
+    custom_control = result.scalars().first()
+    if not custom_control:
+        raise HTTPException(status_code=404, detail="Custom control not found")
+    if custom_control.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    await session.delete(custom_control)
+    await session.commit()
+    return responses.Response(status_code=204)
