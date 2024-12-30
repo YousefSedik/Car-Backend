@@ -3,7 +3,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession 
 from fastapi import APIRouter
 from auth.models import User
-from control.models import Control
+from control.models import Control, CustomControl
 from car.models import UserCar
 from sqlmodel import select
 from auth.utils import validate_jwt
@@ -160,29 +160,16 @@ async def handle_car_custom_control(session: AsyncSession, data, username):
     if id is None:
         print("Missing id")
         return
-
-    result = await session.execute(select(Control).where(Control.custom_control_id == id))
-    controls = result.scalars().all()
-    actions = []
-    mapper = {
-        1: "forward",
-        2: "backward",
-        3: "left",
-        4: "right",
-        5: "stop",
-    }
-    for control in controls:
-        bs_id = control.basic_control_id
-        if bs_id in range(1, 6):
-            if bs_id == 5:
-                actions.append(["set-direction", "stop"])
-            else:
-                actions.append(["set-direction", mapper[control.basic_control_id], control.value])
-        elif bs_id == 6:
-            actions.append(["set-speed", control.value])
-        
-    print(f"Sending to car: {actions}")
-    message = {"type": "customControl", "actions": actions}
+    print(f"Handling custom control with id: {id}")
+    result = await session.execute(select(CustomControl).where(CustomControl.id == id))
+    control = result.scalars().first()
+    if control is None:
+        await manager.send_to_user(json.dumps({"notification": "Custom control not found"}), username)
+        return
+    print(control)
+    description = json.loads(control.description)
+    print(f"Sending to car: {description}")
+    message = {"type": "customControl", "actions": description}
     message = json.dumps(message)
     is_sent = await manager.send_to_car(message, username)
     print(f"Message sent: {is_sent}")
